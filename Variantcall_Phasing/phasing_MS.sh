@@ -99,6 +99,7 @@ gatk_call_variants() {
     samtools faidx "$working_dir/$sample/$locus/bwa/${sample}_${locus}_supercontig.fasta"
     
     gatk --java-options "-Xmx4g" HaplotypeCaller \
+    --read-filter SoftClippedReadFilter --invert-soft-clip-ratio-filter --soft-clipped-leading-trailing-ratio 0.3 \
     -ploidy $ploidy \
     -R "$working_dir/$sample/$locus/bwa/${sample}_${locus}_supercontig.fasta" \
     -I "$output_gatk_dir/${sample}_${locus}_marked_duplicates.bam" \
@@ -118,18 +119,24 @@ gatk_filter_variants() {
     # 過濾變異位點
     gatk VariantFiltration \
     --variant "$output_gatk_dir/${sample}_${locus}.vcf" \
-    --filter-expression "QD < 2.0" --filter-name "QD2" \
     --filter-expression "FS > 60.0" --filter-name "FS60" \
     --filter-expression "MQ < 40.0" --filter-name "MQ40" \
+    --filter-expression "MQRankSum < -12.5" --filter-name "MQRankSum-12.5" \
+    --filter-expression "QUAL < 30.0" --filter-name "QUAL30" \
+    --filter-expression "QD < 2.0" --filter-name "QD2" \
     --filter-expression "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
-    --filter-expression "AF < 0.05 || AF > 0.95" --filter-name "AF5-95" \
+    --filter-expression "SOR > 3.0" --filter-name "SOR3" \
+    --filter-expression "DP < 5" --filter-name "DP5" \
+    --genotype-filter-expression "GQ < 20" --genotype-filter-name "GQ20" \
     --output "$output_gatk_dir/${sample}_${locus}_filtered.vcf"
+
+    bcftools view -f PASS "$output_gatk_dir/${sample}_${locus}_filtered.vcf" > "$output_gatk_dir/${sample}_${locus}_filtered_PASS.vcf"
     echo "======================================================="
 }
 
 whatshap_phase_variants() {
     echo "============= 對變異位點進行分型 ============="
-    # 從_filtered.vcf+_marked_duplicates.bam>_phased.bcf
+    # 從_filtered_PASS.vcf+_marked_duplicates.bam>_phased.bcf
     local ploidy="$1"
     local sample="$2"
     local locus="$3"
@@ -140,8 +147,8 @@ whatshap_phase_variants() {
 
     cp -r "$working_dir/$sample/$locus/bwa/." "$output_gatk_dir"
     #Index the variants file (skip if a .csi or .tbi file already exists):
-    bcftools view "$output_gatk_dir/${sample}_${locus}_filtered.vcf" -Oz -o "$output_gatk_dir/${sample}_${locus}_filtered.vcf.gz"
-    bcftools index "$output_gatk_dir/${sample}_${locus}_filtered.vcf.gz"
+    bcftools view "$output_gatk_dir/${sample}_${locus}_filtered_PASS.vcf" -Oz -o "$output_gatk_dir/${sample}_${locus}_filtered_PASS.vcf.gz"
+    bcftools index "$output_gatk_dir/${sample}_${locus}_filtered_PASS.vcf.gz"
     
     #Index the alignment file (skip if a .csi or .bai file already exists):
     samtools index "$output_gatk_dir/${sample}_${locus}_marked_duplicates.bam"
@@ -158,7 +165,7 @@ whatshap_phase_variants() {
         whatshap phase \
         --reference="$output_gatk_dir/${sample}_${locus}_supercontig.fasta" \
         -o "$output_whatshap_dir/${sample}_${locus}_phased.bcf" \
-        "$output_gatk_dir/${sample}_${locus}_filtered.vcf" "$output_gatk_dir/${sample}_${locus}_marked_duplicates.bam"
+        "$output_gatk_dir/${sample}_${locus}_filtered_PASS.vcf" "$output_gatk_dir/${sample}_${locus}_marked_duplicates.bam"
         echo "======================================================="
     else
         #Run read-based polyphasing.
@@ -166,7 +173,7 @@ whatshap_phase_variants() {
         --ploidy $ploidy --threads 8 \
         --reference "$output_gatk_dir/${sample}_${locus}_supercontig.fasta" \
         -o "$output_whatshap_dir/${sample}_${locus}_phased.bcf" \
-        "$output_gatk_dir/${sample}_${locus}_filtered.vcf" "$output_gatk_dir/${sample}_${locus}_marked_duplicates.bam"
+        "$output_gatk_dir/${sample}_${locus}_filtered_PASS.vcf" "$output_gatk_dir/${sample}_${locus}_marked_duplicates.bam"
         echo "======================================================="
     fi
 }
@@ -295,16 +302,16 @@ while IFS= read -r line || [ -n "$line" ]; do
                     continue
                 fi
                 # 創建目標目錄(如果不存在)
-                mkdir -p "$working_dir/$sample/$locus"
+                # mkdir -p "$working_dir/$sample/$locus"
                 
                 # 複製並索引參考基因組序列
-                copy_and_index_reference "$input_file" "$sample" "$locus"
+                # copy_and_index_reference "$input_file" "$sample" "$locus"
                 
                 # 將讀段與參考基因組比對mapping
-                bwa_mapping_reads "$RG_ID" "$sample" "$locus"
+                # bwa_mapping_reads "$RG_ID" "$sample" "$locus"
                 
                 # 標記重複讀段
-                gatk_mark_duplicates "$sample" "$locus"
+                # gatk_mark_duplicates "$sample" "$locus"
                 
                 # 呼叫變異位點
                 gatk_call_variants "$ploidy" "$sample" "$locus"
