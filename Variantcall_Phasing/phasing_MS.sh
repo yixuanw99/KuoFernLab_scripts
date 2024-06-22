@@ -30,13 +30,18 @@ copy_and_index_reference() {
     local locus="$3"
 
     # 構建輸出目錄路徑
-    output_dir="$working_dir/$sample/$locus/bwa"
+    output_bwa_dir="$working_dir/$sample/$locus/bwa"
 
     # 創建目標目錄(如果不存在)
-    mkdir -p "$output_dir"
+    mkdir -p "$output_bwa_dir"
 
-    # 將 ref.fas 複製到目標目錄
-    cp "$input_file" "$output_dir"/"${sample}_${locus}_supercontig.fasta"
+    # 將 ref.fas 複製到目標目錄並把fasta header加上locus name
+    sed "s/${sample}/${sample}_${locus}/" "$input_file" > "$output_bwa_dir"/"${sample}_${locus}_supercontig.fasta"
+
+    # 進入目標目錄並索引ref
+    cd "$output_bwa_dir"
+    bwa index -p "${sample}_${locus}" "${sample}_${locus}_supercontig.fasta"
+
     echo "======================================================="
 }
 
@@ -50,16 +55,13 @@ bwa_mapping_reads() {
 
     # 構建輸出目錄路徑
     output_bwa_dir="$working_dir/$sample/$locus/bwa"
-    # 進入目標目錄並索引ref
-    cd "$output_bwa_dir"
-    bwa index -p "${sample}_${locus}" "${sample}_${locus}_supercontig.fasta"
 
     # 創建目標目錄(如果不存在)
     mkdir -p "$output_bwa_dir"
     mkdir -p "$output_bwa_dir/output"
 
     #bwa | samtools
-    bwa mem -M -t 20 -R "@RG\tID:${RG_ID}\tSM:${sample}_${locus}" \
+    bwa mem -M -t 30 -R "@RG\tID:${RG_ID}\tSM:${sample}_${locus}" \
     "$output_bwa_dir/${sample}_${locus}" \
     "$raw_fq_dir/${sample}"*"R1_trimmed.fastq.gz" "$raw_fq_dir/${sample}"*"R2_trimmed.fastq.gz" \
     2> "$output_bwa_dir/bwa.err" \
@@ -252,7 +254,7 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-working_dir="/home2/yxwu/Phasing"
+working_dir="/home2/yxwu/Phasing_MS"
 
 
 # 讀取配置文件
@@ -302,16 +304,16 @@ while IFS= read -r line || [ -n "$line" ]; do
                     continue
                 fi
                 # 創建目標目錄(如果不存在)
-                # mkdir -p "$working_dir/$sample/$locus"
+                mkdir -p "$working_dir/$sample/$locus"
                 
                 # 複製並索引參考基因組序列
-                # copy_and_index_reference "$input_file" "$sample" "$locus"
+                copy_and_index_reference "$input_file" "$sample" "$locus"
                 
                 # 將讀段與參考基因組比對mapping
-                # bwa_mapping_reads "$RG_ID" "$sample" "$locus"
+                bwa_mapping_reads "$RG_ID" "$sample" "$locus"
                 
                 # 標記重複讀段
-                # gatk_mark_duplicates "$sample" "$locus"
+                gatk_mark_duplicates "$sample" "$locus"
                 
                 # 呼叫變異位點
                 gatk_call_variants "$ploidy" "$sample" "$locus"
