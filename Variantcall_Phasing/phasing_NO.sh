@@ -146,6 +146,7 @@ gatk_filter_variants() {
     --filter-expression "QD < 2.0" --filter-name "QD2" \
     --filter-expression "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
     --filter-expression "SOR > 3.0" --filter-name "SOR3" \
+    --filter-expression "DP < 5" --filter-name "DP5" \
     --genotype-filter-expression "GQ < 20" --genotype-filter-name "GQ20" \
     --output "$output_gatk_dir/${sample}_${locus}_filtered.vcf"
 
@@ -271,7 +272,7 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-working_dir="/home2/yxwu/Phasing"
+working_dir="/home2/yxwu/Phasing_No"
 
 
 # 讀取配置文件
@@ -292,7 +293,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     ploidy=$(echo "$line" | awk '{print $3}')
 
     # 設置raw_fq目錄的路徑
-    raw_fq_dir="/home2/yxwu/sequence_raw/Miseq_raw/${project}_FASTQ/trimmed"
+    raw_fq_dir="/home2/yxwu/sequence_raw/Novaseq_raw/${project}_FASTQ/trimmed"
 
     # 設置sample目錄的路徑
     sample_dir="/home/yixuan/Hybpiper/LMRPS_capture/$project/$sample"

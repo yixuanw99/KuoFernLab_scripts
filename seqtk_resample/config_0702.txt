@@ -1,0 +1,3 @@
+/home/lykuo/lab_data/NGS_data/Hiseq_X_ten/NF230217001_HN00189655/trimmed	YXD086	Hiseq	5
+/home2/yxwu/sequence_raw/Miseq_raw/MS23395_FASTQ/trimmed	YXD136	Miseq	5
+/home2/yxwu/sequence_raw/Novaseq_raw/HL24026_FASTQ/trimmed	YXD136	Novaseq	5
